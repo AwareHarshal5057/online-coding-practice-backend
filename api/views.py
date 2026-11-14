@@ -25,6 +25,8 @@ from .models import Question, CodeSubmission
 
 # Home API
 @api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def home_api(request):
 
     data = {
@@ -37,6 +39,8 @@ def home_api(request):
 
 # Register API
 @api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def register_api(request):
 
     serializer = RegisterSerializer(data=request.data)
@@ -61,6 +65,8 @@ def register_api(request):
 
 # Login API
 @api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def login_api(request):
 
     serializer = LoginSerializer(data=request.data)
@@ -69,7 +75,6 @@ def login_api(request):
 
         user = serializer.validated_data['user']
 
-        # Generate or get existing token
         token, created = Token.objects.get_or_create(user=user)
 
         return Response(
@@ -97,7 +102,7 @@ def login_api(request):
 @permission_classes([AllowAny])
 def questions_api(request):
 
-    # GET: Display all questions
+    # GET: Anyone can view questions
     if request.method == 'GET':
 
         questions = Question.objects.all()
@@ -112,10 +117,11 @@ def questions_api(request):
             status=status.HTTP_200_OK
         )
 
-    # POST: Add new question
+    # POST: Login required to add questions
     elif request.method == 'POST':
 
         if not request.user.is_authenticated:
+
             return Response(
                 {"detail": "Please login to add a question."},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -155,7 +161,7 @@ def question_detail_api(request, pk):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # GET: Display single question
+    # GET: Anyone can view a question
     if request.method == 'GET':
 
         serializer = QuestionSerializer(question)
@@ -165,7 +171,7 @@ def question_detail_api(request, pk):
             status=status.HTTP_200_OK
         )
 
-    # Login required for Edit and Delete
+    # Login required for PUT, PATCH and DELETE
     if not request.user.is_authenticated:
 
         return Response(
@@ -173,7 +179,6 @@ def question_detail_api(request, pk):
             status=status.HTTP_401_UNAUTHORIZED
         )
 
-    # PUT and PATCH: Update question
     elif request.method in ['PUT', 'PATCH']:
 
         serializer = QuestionSerializer(
@@ -196,15 +201,12 @@ def question_detail_api(request, pk):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # DELETE: Delete question
     elif request.method == 'DELETE':
 
         question.delete()
 
         return Response(
-            {
-                "message": "Question deleted successfully"
-            },
+            {"message": "Question deleted successfully"},
             status=status.HTTP_200_OK
         )
 
@@ -235,9 +237,7 @@ def submissions_api(request):
     # POST: Submit code
     elif request.method == 'POST':
 
-        serializer = CodeSubmissionSerializer(
-            data=request.data
-        )
+        serializer = CodeSubmissionSerializer(data=request.data)
 
         if serializer.is_valid():
 
@@ -263,12 +263,9 @@ def submissions_api(request):
 @permission_classes([IsAuthenticated])
 def logout_api(request):
 
-    # Delete current user's authentication token
     request.auth.delete()
 
     return Response(
-        {
-            "message": "Logout successful!"
-        },
+        {"message": "Logout successful!"},
         status=status.HTTP_200_OK
     )

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from .models import Question
+from .models import CodeSubmission
 
 class RegisterSerializer(serializers.ModelSerializer):
 
@@ -62,3 +63,22 @@ class QuestionSerializer(serializers.ModelSerializer):
             'sample_output',
             'created_at'
         ]
+
+class CodeSubmissionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CodeSubmission
+
+        fields = [
+            'id',
+            'student',
+            'question',
+            'submitted_code',
+            'submitted_at'
+        ]
+
+        read_only_fields = [
+            'id',
+            'student',
+            'submitted_at'
+        ]        

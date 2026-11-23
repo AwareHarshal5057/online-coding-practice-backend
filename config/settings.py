@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'api',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
 ]
 
 
@@ -127,3 +129,13 @@ MAILERS = {
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8001",
 ]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
+}

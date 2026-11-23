@@ -25,4 +25,8 @@ urlpatterns = [
     # Code Submission API
     path('submissions/', views.submissions_api, name='submissions_api'),
 
+    path('mcq-questions/', views.mcq_questions_api, name='mcq_questions_api'),
+
+    path('mcq-submit/',views.mcq_submit_api,name='mcq_submit_api'),
+    path('mcq-results/',views.mcq_results_api,name='mcq_results_api'),
 ]

@@ -9,7 +9,13 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from rest_framework.permissions import (
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+    AllowAny
+)
 
 from rest_framework.authtoken.models import Token
 
@@ -21,7 +27,11 @@ from .serializers import (
 )
 
 from .models import Question, CodeSubmission
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from .serializers import MCQQuestionSerializer
+from .models import MCQQuestion,MCQSubmission
+from .serializers import MCQSubmissionSerializer
 
 # Home API
 @api_view(['GET'])
@@ -46,13 +56,16 @@ def register_api(request):
     serializer = RegisterSerializer(data=request.data)
 
     if serializer.is_valid():
-
-        serializer.save()
+        user = serializer.save()
 
         return Response(
             {
                 "message": "Registration successful!",
-                "user": serializer.data
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email
+                }
             },
             status=status.HTTP_201_CREATED
         )
@@ -63,7 +76,7 @@ def register_api(request):
     )
 
 
-# Login API
+# Login API (JWT Authentication)
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
@@ -72,15 +85,15 @@ def login_api(request):
     serializer = LoginSerializer(data=request.data)
 
     if serializer.is_valid():
-
         user = serializer.validated_data['user']
 
-        token, created = Token.objects.get_or_create(user=user)
+        refresh = RefreshToken.for_user(user)
 
         return Response(
             {
                 "message": "Login successful!",
-                "token": token.key,
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
                 "user": {
                     "id": user.id,
                     "username": user.username,
@@ -95,73 +108,59 @@ def login_api(request):
         status=status.HTTP_400_BAD_REQUEST
     )
 
+# Questions API
+# GET: Public
+# POST: JWT required
 
-# Questions API - GET and POST
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticatedOrReadOnly])
 def questions_api(request):
 
-    # GET: Anyone can view questions
     if request.method == 'GET':
 
         questions = Question.objects.all()
-
-        serializer = QuestionSerializer(
-            questions,
-            many=True
-        )
+        serializer = QuestionSerializer(questions, many=True)
 
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
         )
 
-    # POST: Login required to add questions
-    elif request.method == 'POST':
+    serializer = QuestionSerializer(data=request.data)
 
-        if not request.user.is_authenticated:
-
-            return Response(
-                {"detail": "Please login to add a question."},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        serializer = QuestionSerializer(data=request.data)
-
-        if serializer.is_valid():
-
-            serializer.save()
-
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+    if serializer.is_valid():
+        serializer.save()
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            serializer.data,
+            status=status.HTTP_201_CREATED
         )
 
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST
+    )
 
-# Single Question API - GET, PUT, PATCH and DELETE
+
+# Single Question API
+# GET: Public
+# PUT/PATCH/DELETE: JWT required
+
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@authentication_classes([TokenAuthentication])
-@permission_classes([AllowAny])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticatedOrReadOnly])
 def question_detail_api(request, pk):
 
     try:
-
         question = Question.objects.get(pk=pk)
 
     except Question.DoesNotExist:
-
         return Response(
             {"error": "Question not found"},
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # GET: Anyone can view a question
     if request.method == 'GET':
 
         serializer = QuestionSerializer(question)
@@ -169,14 +168,6 @@ def question_detail_api(request, pk):
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
-        )
-
-    # Login required for PUT, PATCH and DELETE
-    if not request.user.is_authenticated:
-
-        return Response(
-            {"detail": "Please login to modify a question."},
-            status=status.HTTP_401_UNAUTHORIZED
         )
 
     elif request.method in ['PUT', 'PATCH']:
@@ -188,7 +179,6 @@ def question_detail_api(request, pk):
         )
 
         if serializer.is_valid():
-
             serializer.save()
 
             return Response(
@@ -213,11 +203,15 @@ def question_detail_api(request, pk):
 
 # Code Submission API
 @api_view(['GET', 'POST'])
-@authentication_classes([TokenAuthentication])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def submissions_api(request):
 
-    # GET: Student submissions
+    print("AUTH USER:", request.user)
+    print("AUTHENTICATED:", request.user.is_authenticated)
+    print("AUTH HEADER:", request.META.get("HTTP_AUTHORIZATION"))
+
+
     if request.method == 'GET':
 
         submissions = CodeSubmission.objects.filter(
@@ -234,30 +228,24 @@ def submissions_api(request):
             status=status.HTTP_200_OK
         )
 
-    # POST: Submit code
-    elif request.method == 'POST':
+    serializer = CodeSubmissionSerializer(data=request.data)
 
-        serializer = CodeSubmissionSerializer(data=request.data)
-
-        if serializer.is_valid():
-
-            serializer.save(student=request.user)
-
-            return Response(
-                {
-                    "message": "Code submitted successfully!",
-                    "submission": serializer.data
-                },
-                status=status.HTTP_201_CREATED
-            )
+    if serializer.is_valid():
+        serializer.save(student=request.user)
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            serializer.data,
+            status=status.HTTP_201_CREATED
         )
 
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST
+    )
 
-# Logout API
+
+
+# Logout API (Old DRF Token Authentication)
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -267,5 +255,62 @@ def logout_api(request):
 
     return Response(
         {"message": "Logout successful!"},
+        status=status.HTTP_200_OK
+    )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def mcq_questions_api(request):
+
+    questions = MCQQuestion.objects.all()
+
+    serializer = MCQQuestionSerializer(
+        questions,
+        many=True
+    )
+
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mcq_submit_api(request):
+
+    serializer = MCQSubmissionSerializer(
+        data=request.data
+    )
+
+    if serializer.is_valid():
+
+        submission = serializer.save(
+            student=request.user
+        )
+
+        return Response({
+            "message": "Answer submitted successfully!",
+            "is_correct": submission.is_correct
+        }, status=status.HTTP_201_CREATED)
+
+    return Response(
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mcq_results_api(request):
+
+    submissions = MCQSubmission.objects.filter(
+        student=request.user
+    )
+
+    serializer = MCQSubmissionSerializer(
+        submissions,
+        many=True
+    )
+
+    return Response(
+        serializer.data,
         status=status.HTTP_200_OK
     )

@@ -23,7 +23,8 @@ from .serializers import (
     RegisterSerializer,
     LoginSerializer,
     QuestionSerializer,
-    CodeSubmissionSerializer
+    CodeSubmissionSerializer,
+    LessonSerializer,
 )
 
 from .models import Question, CodeSubmission
@@ -308,6 +309,24 @@ def mcq_results_api(request):
     serializer = MCQSubmissionSerializer(
         submissions,
         many=True
+    )
+
+    return Response(
+        serializer.data,
+        status=status.HTTP_200_OK
+    )
+
+# Published Python Lessons API
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def lessons_api(request):
+    lessons = Lesson.objects.filter(is_published=True)
+
+    serializer = LessonSerializer(
+        lessons,
+        many=True,
+        context={'request': request}
     )
 
     return Response(

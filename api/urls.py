@@ -29,4 +29,7 @@ urlpatterns = [
 
     path('mcq-submit/',views.mcq_submit_api,name='mcq_submit_api'),
     path('mcq-results/',views.mcq_results_api,name='mcq_results_api'),
+
+    # Python Lessons API
+    path('lessons/', views.lessons_api, name='lessons_api'),
 ]

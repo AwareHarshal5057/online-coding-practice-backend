@@ -102,3 +102,31 @@ class MCQSubmission(models.Model):
         return self.student.username    
 
     
+
+class Lesson(models.Model):
+    title = models.CharField(max_length=200)
+    topic = models.CharField(max_length=100)
+    description = models.TextField()
+    notes = models.TextField()
+    video_file = models.FileField(upload_to='python_lessons/videos',blank=True,null=True)
+    video_url = models.URLField(blank=True,null=True)
+    order = models.PositiveIntegerField(default=1)
+    is_published = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    update_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order','created_at']
+
+    def __str__(self):
+        return self.title    
+
+
+
+
+
+
+
+
+
+

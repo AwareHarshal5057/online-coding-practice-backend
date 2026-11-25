@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from .models import Question
 from .models import CodeSubmission
-from .models import MCQQuestion,MCQOption,MCQSubmission
+from .models import MCQQuestion,MCQOption,MCQSubmission,Lesson
 
 class RegisterSerializer(serializers.ModelSerializer):
 
@@ -135,7 +135,16 @@ class MCQSubmissionSerializer(serializers.ModelSerializer):
 
         return MCQSubmission.objects.create(**validated_data)     
 
-
-# print("AUTH USER:", request.user)
-# print("AUTHENTICATED:", request.user.is_authenticated)
-# print("AUTH HEADER:", request.META.get("HTTP_AUTHORIZATION"))    
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = [
+            'id',
+            'title',
+            'topic',
+            'description',
+            'notes',
+            'video_file',
+            'video_url',
+            'order',
+        ]

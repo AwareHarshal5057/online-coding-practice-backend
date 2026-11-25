@@ -318,8 +318,8 @@ def mcq_results_api(request):
 
 # Published Python Lessons API
 @api_view(['GET'])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def lessons_api(request):
     lessons = Lesson.objects.filter(is_published=True)
 
